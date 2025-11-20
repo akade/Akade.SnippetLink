@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="Readme.md" />
+  </Folder>
+  <Project Path="Akade.SnippetLink.Benchmarks/Akade.SnippetLink.Benchmarks.csproj" Id="49fc0b23-6158-47ad-8cc0-07154fed8284" />
+  <Project Path="Akade.SnippetLink.Tests/Akade.SnippetLink.Tests.csproj" />
+  <Project Path="Akade.SnippetLink/Akade.SnippetLink.csproj" />
+</Solution>
