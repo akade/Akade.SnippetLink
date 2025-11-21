@@ -29,15 +29,21 @@ internal sealed class CSharpImporter(IFileSystem fileSystem) : SnippetImporter
 
         int lineNumber = 0;
         int indentationLevel = 0;
+
+        bool isRegionSnippet = false;
+
         foreach (ReadOnlySpan<char> rawLine in sourceText.EnumerateLines())
         {
             ReadOnlySpan<char> line = rawLine.Trim();
-            if (line.StartsWith("#region ", StringComparison.OrdinalIgnoreCase) && line["#region ".Length..].StartsWith(name, StringComparison.OrdinalIgnoreCase))
+            if ((line.StartsWith("#region ", StringComparison.OrdinalIgnoreCase) && line["#region ".Length..].StartsWith(name, StringComparison.OrdinalIgnoreCase))
+             || (line.StartsWith("// begin-snippet: ") && line["// begin-snippet: ".Length..].StartsWith(name, StringComparison.OrdinalIgnoreCase)))
             {
+                isRegionSnippet = line.StartsWith("#region ", StringComparison.OrdinalIgnoreCase);
                 startLine = lineNumber;
-                indentationLevel = rawLine.IndexOf('#');
+                indentationLevel = isRegionSnippet ? rawLine.IndexOf('#') : rawLine.IndexOf('/');
             }
-            else if (line.TrimStart().StartsWith("#endregion", StringComparison.OrdinalIgnoreCase) && startLine.HasValue)
+            else if (startLine.HasValue && (isRegionSnippet && line.StartsWith("#endregion", StringComparison.OrdinalIgnoreCase)
+                                         || line.StartsWith("// end-snippet")))
             {
                 snippetContent.Length -= Environment.NewLine.Length; // Remove last newline
                 return new Snippet(

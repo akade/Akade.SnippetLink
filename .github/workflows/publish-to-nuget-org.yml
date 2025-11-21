@@ -1,0 +1,29 @@
+name: Publish to nuget.org
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+      with: 
+        lfs: true
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 10.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build -c Release --no-restore /p:ContinuousIntegrationBuild=true
+    - name: Test
+      run: dotnet test -c Release --no-build --verbosity normal
+    - name: upload
+      run: dotnet nuget push ./Akade.SnippetLink/bin/Release/Akade.SnippetLink.*.nupkg --source https://api.nuget.org/v3/index.json --api-key "$NUGET_KEY"
+      env:
+        NUGET_KEY: ${{SECRETS.NUGETORGAPIKEY}}

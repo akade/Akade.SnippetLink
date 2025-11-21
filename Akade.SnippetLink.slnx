@@ -1,5 +1,7 @@
 <Solution>
   <Folder Name="/Solution Items/">
+    <File Path=".github/workflows/ci-build.yml" />
+    <File Path=".github/workflows/publish-to-nuget-org.yml" />
     <File Path="Readme.md" />
   </Folder>
   <Project Path="Akade.SnippetLink.Benchmarks/Akade.SnippetLink.Benchmarks.csproj" Id="49fc0b23-6158-47ad-8cc0-07154fed8284" />
