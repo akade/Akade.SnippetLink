@@ -5,12 +5,63 @@ namespace Akade.SnippetLink.Tests;
 
 public class MarkdownProcessorTests
 {
-
-    public static TheoryData<string, (string fileName, string content)[], string> SuccessfulTestCases() => new()
+    [Fact]
+    public async Task No_snippet()
     {
-        { "Input markdown content", [], "Input markdown content" },
-        // C# snippet test case, first time insertion
-        {
+        await Run(
+            "Input markdown content",
+            [],
+            "Input markdown content"
+        );
+    }
+
+    [Fact]
+    public async Task Cs_comment_snippet_first_time()
+    {
+        await Run(
+            """
+            Here is a code snippet:
+            <!-- begin-snippet: Example.cs MySnippet -->
+            <!-- end-snippet -->
+            """,
+            [
+                (
+                    "Example.cs",
+                    """
+                    // Some C# code
+                    // begin-snippet: MySnippet
+                    public class MyClass
+                    {
+                        public void MyMethod()
+                        {
+                            // method body
+                        }
+                    }
+                    // end-snippet
+                    """
+                )
+            ],
+            """
+            Here is a code snippet:
+            <!-- begin-snippet: Example.cs MySnippet -->
+            ```cs
+            public class MyClass
+            {
+                public void MyMethod()
+                {
+                    // method body
+                }
+            }
+            ```
+            <!-- end-snippet -->
+            """
+        );
+    }
+
+    [Fact]
+    public async Task Cs_region_snippet_first_time()
+    {
+        await Run(
             """
             Here is a code snippet:
             <!-- begin-snippet: Example.cs MySnippet -->
@@ -47,9 +98,13 @@ public class MarkdownProcessorTests
             ```
             <!-- end-snippet -->
             """
-        },
-        // C# snippet test case, second time insertion
-        {
+        );
+    }
+
+    [Fact]
+    public async Task Cs_region_snippet_replacement()
+    {
+        await Run(
             """
             Here is a code snippet:
             <!-- begin-snippet: Example.cs MySnippet -->
@@ -95,9 +150,13 @@ public class MarkdownProcessorTests
             ```
             <!-- end-snippet -->
             """
-        },
-        // BenchmarkDotNet result snippet
-        {
+        );
+    }
+
+    [Fact]
+    public async Task BenchmarkDotNet_result_snippet_without_env()
+    {
+        await Run(
             """
             Benchmark results:
             <!-- begin-snippet: Akade.IndexedSet.Benchmarks ConcurrentSetBenchmarks (importer:benchmarkdotnet) -->
@@ -124,10 +183,13 @@ public class MarkdownProcessorTests
             | Test1  | 1 ms | 0.1 ms| 0.2 ms |
             <!-- end-snippet -->
             """
-        }
-        ,
-        // BenchmarkDotNet result snippet with environment
-        {
+        );
+    }
+
+    [Fact]
+    public async Task BenchmarkDotNet_result_snippet_with_env()
+    {
+        await Run(
             """
             Benchmark results:
             <!-- begin-snippet: Akade.IndexedSet.Benchmarks ConcurrentSetBenchmarks (importer:benchmarkdotnet?env=true) -->
@@ -157,15 +219,17 @@ public class MarkdownProcessorTests
             | Test1  | 1 ms | 0.1 ms| 0.2 ms |
             <!-- end-snippet -->
             """
-        }
+        );
+    }
 
-    };
-
-    [Theory]
-    [MemberData(nameof(SuccessfulTestCases))]
-    public async Task SuccessfulTestsAsync(string input, (string fileName, string content)[] files, string expectedOutput)
+    private static async Task Run(string input, (string fileName, string content)[] files, string expectedOutput)
     {
         (Result<bool> result, string output) = await ProcessAsync(input, files);
+
+        if (result is Result<bool>.Failure failure)
+        {
+            Assert.Fail($"Processing failed: {failure.ErrorMessage}");
+        }
 
         bool actualResult = Assert.IsType<Result<bool>.Success>(result).Value;
 

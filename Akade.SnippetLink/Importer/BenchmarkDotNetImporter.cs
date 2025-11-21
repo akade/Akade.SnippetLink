@@ -51,7 +51,7 @@ internal sealed class BenchmarkDotNetImporter(IFileSystem fileSystem) : SnippetI
 
         ReadOnlySpan<char> content = await fileSystem.ReadAllTextAsync(filePath);
 
-        /// The environment information is within a code block
+        // The environment information is within a code block
         if (!includeEnv)
         {
             int envStart = content.IndexOf("```", StringComparison.OrdinalIgnoreCase);

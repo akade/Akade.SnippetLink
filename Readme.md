@@ -1,14 +1,59 @@
 # Akade.SnippetLink
 
-Streamlined, simplified and opinionated dotnet tool for importing snippets into Markdown files.
+A streamlined, extensible and opinionated dotnet tool for importing snippets into Markdown files.
+
+Shamelessly inspired by [Simon Crop's excellent MarkdownSnippets](https://github.com/SimonCropp/MarkdownSnippets) but
+designed for easier extensibility and per snippet customization. The included special support for importing BenchmarkDotNet results
+is the main reason for the library.
+
+> :information_source: You can use both tools in the same project. This one for example for importing BenchmarkDotNet results, 
+and MarkdownSnippets if you want to have rendered links to the source files.
 
 ## Features
 - Import code snippets from C# source files into Markdown files
-- Import markdown snippets from other Markdown files with special support for BenchmarkDotNet snippets
+- Import markdown snippets from other Markdown files with special support for **BenchmarkDotNet results**
 - Extensible architecture for different source files and output formats
 
+## Getting started
 
-## C-Sharp snippets based on `#region` directives
+Add the snippet in your csharp-file:
+```cs
+#region MySnippet
+public void MyMethod()
+{
+    // Implementation
+}
+#endregion
+```
+Add it in your markdown-file:
+```markdown
+<!-- begin-snippet: path/to/YourFile.cs MySnippet -->
+<!-- end-snippet -->
+```
+
+Run `dnx Akade.SnippetLink` and all markdown files in the current and subdirectories will be processed:
+
+````markdown
+<!-- begin-snippet: path/to/YourFile.cs MySnippet -->
+```cs
+public void MyMethod()
+{
+    // Implementation
+}
+```
+<!-- end-snippet -->
+````
+
+Note that the links will still be there, so you can re-run the tool to update snippets as needed.
+
+Alternatively, install it as a local or global tool:
+- `dotnet tool install Akade.SnippetLink`
+- Run it using `dotnet snippet-link`
+
+
+## C-Sharp snippets based on comment or `#region` directives
+The following matches either `// begin-snippet: MarkdownProcessorTest` or `#region MarkdownProcessorTest` in the specified source file.
+Closed by either `// end-snippet` or `#endregion`. Indentation matches the start.
 `<!-- begin-snippet: Akade.SnippetLink.Tests/MarkdownProcessorTests.cs MarkdownProcessorTest -->`
 <!-- begin-snippet: Akade.SnippetLink.Tests/MarkdownProcessorTests.cs MarkdownProcessorTest -->
 ```cs
