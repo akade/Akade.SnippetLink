@@ -1,5 +1,4 @@
 ﻿using BenchmarkDotNet.Attributes;
-using System.Security.Cryptography;
 
 namespace Akade.SnippetLink.Benchmarks;
 

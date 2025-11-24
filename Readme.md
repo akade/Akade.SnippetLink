@@ -6,8 +6,8 @@ Shamelessly inspired by [Simon Crop's excellent MarkdownSnippets](https://github
 designed for easier extensibility and per snippet customization. The included special support for importing BenchmarkDotNet results
 is the main reason for the library.
 
-> :information_source: You can use both tools in the same project. This one for example for importing BenchmarkDotNet results, 
-and MarkdownSnippets if you want to have rendered links to the source files.
+> :information_source: You can use both tools in the same project. Akade.SnippetLink to import BenchmarkDotNet results, 
+and MarkdownSnippets to render links to the original source files.
 
 ## Features
 - Import code snippets from C# source files into Markdown files
