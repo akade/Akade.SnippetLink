@@ -1,7 +1,9 @@
 ﻿using Akade.SnippetLink.Formatter;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
+using System.Diagnostics;
 using System.Text;
 
 namespace Akade.SnippetLink.Importer;
@@ -82,7 +84,8 @@ internal sealed class CSharpImporter(IFileSystem fileSystem) : SnippetImporter
                 Content: content.ToString(),
                 Language: "cs"
             );
-        };
+        }
+        ;
     }
 
     private class SnippetFinder(string sourceText, string snippetName) : CSharpSyntaxWalker(SyntaxWalkerDepth.StructuredTrivia)
@@ -128,6 +131,75 @@ internal sealed class CSharpImporter(IFileSystem fileSystem) : SnippetImporter
             }
 
             base.VisitTrivia(trivia);
+        }
+
+        public override void Visit(SyntaxNode? node)
+        {
+            SyntaxToken identifier = GetIdentifier(node);
+
+            if (!identifier.IsKind(SyntaxKind.None))
+            {
+                Debug.Assert(node != null);
+                ReadOnlySpan<char> nameSpan = sourceText.AsSpan()[identifier.SpanStart..identifier.Span.End];
+
+                if (snippetName.EndsWith(nameSpan, StringComparison.OrdinalIgnoreCase)
+                   && FullSymbolNameMatch(node, sourceText, snippetName))
+                {
+                    SyntaxNode startNode = node;
+                    SyntaxNode endNode = node;
+
+                    if (node is MethodDeclarationSyntax { Body: BlockSyntax block})
+                    {
+                        startNode = block.ChildNodes().First();
+                        endNode = block.ChildNodes().Last();
+                    }
+
+                    Start = startNode.FullSpan.Start;
+                    IndentationLevel = startNode.SyntaxTree.GetLocation(startNode.Span).GetLineSpan().StartLinePosition.Character;
+                    Kind = SnippetKind.Symbol;
+                    End = endNode.FullSpan.End;
+                }
+            }
+
+            base.Visit(node);
+        }
+
+        private static SyntaxToken GetIdentifier(SyntaxNode? node)
+        {
+            return node switch
+            {
+                ClassDeclarationSyntax classDecl => classDecl.Identifier,
+                MethodDeclarationSyntax methodDecl => methodDecl.Identifier,
+                PropertyDeclarationSyntax propDecl => propDecl.Identifier,
+                BaseTypeDeclarationSyntax typeDecl => typeDecl.Identifier,
+                DelegateDeclarationSyntax delegateDeclaration => delegateDeclaration.Identifier,
+                _ => default
+            };
+        }
+
+        private static bool FullSymbolNameMatch(SyntaxNode node, ReadOnlySpan<char> source, ReadOnlySpan<char> snippetName)
+        {
+            int lastSegmentStart;
+            ReadOnlySpan<char> remaining = snippetName;
+            SyntaxNode? currentNode = node;
+            while (!remaining.IsEmpty && currentNode != null)
+            {
+                lastSegmentStart = remaining.LastIndexOf('.');
+                ReadOnlySpan<char> currentSegment = remaining[(lastSegmentStart + 1)..];
+                remaining = lastSegmentStart > 0 ? remaining[..lastSegmentStart] : ReadOnlySpan<char>.Empty;
+
+                SyntaxToken identifier = GetIdentifier(currentNode);
+                if (identifier.IsKind(SyntaxKind.None))
+                    return false;
+
+                ReadOnlySpan<char> nodeNameSpan = source[identifier.SpanStart..identifier.Span.End];
+                if (!currentSegment.Equals(nodeNameSpan, StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                currentNode = currentNode.Parent;
+            }
+
+            return remaining.IsEmpty;
         }
 
         private void SetEnd(TextSpan span)
