@@ -1,10 +1,15 @@
 ﻿using Akade.SnippetLink.Formatter;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Text;
 using System.Text;
 
 namespace Akade.SnippetLink.Importer;
 
 internal sealed class CSharpImporter(IFileSystem fileSystem) : SnippetImporter
 {
+    private readonly Dictionary<string, (string content, SyntaxTree tree)> _parseCacheBySourceFile = [];
+
     internal override string Name => "cs";
 
     internal override Type PreferredFormatter => typeof(CodeBlockFormatter);
@@ -22,50 +27,137 @@ internal sealed class CSharpImporter(IFileSystem fileSystem) : SnippetImporter
 
     internal override async Task<Result<Snippet>> ImportSnippetAsync(string sourceFile, string name, Options options)
     {
-        ReadOnlySpan<char> sourceText = await fileSystem.ReadAllTextAsync(sourceFile);
+        string sourceText;
+        SyntaxTree tree;
 
-        int? startLine = null;
-        StringBuilder snippetContent = new();
-
-        int lineNumber = 0;
-        int indentationLevel = 0;
-
-        bool isRegionSnippet = false;
-
-        foreach (ReadOnlySpan<char> rawLine in sourceText.EnumerateLines())
+        if (_parseCacheBySourceFile.TryGetValue(sourceFile, out var parseResult))
         {
-            ReadOnlySpan<char> line = rawLine.Trim();
-            if ((line.StartsWith("#region ", StringComparison.OrdinalIgnoreCase) && line["#region ".Length..].StartsWith(name, StringComparison.OrdinalIgnoreCase))
-             || (line.StartsWith("// begin-snippet: ") && line["// begin-snippet: ".Length..].StartsWith(name, StringComparison.OrdinalIgnoreCase)))
-            {
-                isRegionSnippet = line.StartsWith("#region ", StringComparison.OrdinalIgnoreCase);
-                startLine = lineNumber;
-                indentationLevel = isRegionSnippet ? rawLine.IndexOf('#') : rawLine.IndexOf('/');
-            }
-            else if (startLine.HasValue && (isRegionSnippet && line.StartsWith("#endregion", StringComparison.OrdinalIgnoreCase)
-                                         || line.StartsWith("// end-snippet")))
-            {
-                snippetContent.Length -= Environment.NewLine.Length; // Remove last newline
-                return new Snippet(
-                    SourceFile: sourceFile,
-                    Name: name,
-                    StartLine: startLine.Value,
-                    EndLine: lineNumber,
-                    Content: snippetContent.ToString(),
-                    Language: "cs"
-                );
-            }
-            else if (startLine.HasValue)
-            {
-                int currentIndentation = rawLine.IndexOfAnyExcept([' ', '\t']);
-                int trim = currentIndentation > 0 ? Math.Min(indentationLevel, currentIndentation) : 0;
-
-                snippetContent.Append(rawLine[trim..]);
-                snippetContent.AppendLine();
-            }
-            lineNumber++;
+            (sourceText, tree) = parseResult;
+        }
+        else
+        {
+            sourceText = await fileSystem.ReadAllTextAsync(sourceFile);
+            tree = CSharpSyntaxTree.ParseText(sourceText);
+            _parseCacheBySourceFile[sourceFile] = (sourceText, tree);
         }
 
-        return new Result.Failure($"Snippet '{name}' not found in file '{sourceFile}'.");
+        var root = tree.GetRoot();
+
+        SnippetFinder finder = new(sourceText, name);
+        finder.Visit(root);
+
+        return (finder.Kind, finder.Start, finder.End) switch
+        {
+            (_, >= 0, <= 1) => new Result.Failure($"Snippet '{name}' is missing its closing comment or region in '{sourceFile}'."),
+            (_, >= 0, >= 0) => GetSuccessfulSnippet(),
+
+            _ => new Result.Failure($"Snippet '{name}' not found in file '{sourceFile}'."),
+        };
+
+        Result<Snippet> GetSuccessfulSnippet()
+        {
+            var snippetSpan = TextSpan.FromBounds(finder.Start, finder.End);
+            var snippetText = sourceText.AsSpan()[snippetSpan.Start..snippetSpan.End];
+
+            // remove any leading or trailing newlines
+            snippetText = snippetText.TrimStart(['\r', '\n']);
+            snippetText = snippetText.TrimEnd(['\r', '\n']);
+
+            StringBuilder content = new(snippetSpan.Length);
+
+            foreach (ReadOnlySpan<char> rawLine in snippetText.EnumerateLines())
+            {
+                int currentIndentation = rawLine.IndexOfAnyExcept([' ', '\t']);
+                int trim = currentIndentation > 0 ? Math.Min(finder.IndentationLevel, currentIndentation) : 0;
+                content.Append(rawLine[trim..]);
+                content.AppendLine();
+            }
+            content.Length -= Environment.NewLine.Length; // Remove last newline
+            FileLinePositionSpan lineSpan = tree.GetLineSpan(snippetSpan);
+            return new Snippet(
+                SourceFile: sourceFile,
+                Name: name,
+                StartLine: lineSpan.StartLinePosition.Line,
+                EndLine: lineSpan.EndLinePosition.Line,
+                Content: content.ToString(),
+                Language: "cs"
+            );
+        };
+    }
+
+    private class SnippetFinder(string sourceText, string snippetName) : CSharpSyntaxWalker(SyntaxWalkerDepth.StructuredTrivia)
+    {
+        public int IndentationLevel { get; private set; } = -1;
+        public int Start { get; private set; } = -1;
+        public int End { get; private set; } = -1;
+        public SnippetKind Kind { get; private set; } = SnippetKind.None;
+
+        private int _nestingLevel = 0;
+
+        public override void VisitTrivia(SyntaxTrivia trivia)
+        {
+            if (End != -1)
+                return;
+
+            ReadOnlySpan<char> text = sourceText.AsSpan()[trivia.SpanStart..trivia.Span.End];
+            switch (trivia.Kind(), Kind)
+            {
+                case (SyntaxKind.SingleLineCommentTrivia, SnippetKind.None or SnippetKind.Comment)
+                    when text.StartsWith("// begin-snippet: ", StringComparison.OrdinalIgnoreCase):
+                    {
+                        SetStart(trivia, SnippetKind.Comment, text["// begin-snippet: ".Length..]);
+                    }
+                    break;
+                case (SyntaxKind.SingleLineCommentTrivia, SnippetKind.Comment)
+                    when text.StartsWith("// end-snippet", StringComparison.OrdinalIgnoreCase):
+                    {
+                        SetEnd(trivia.Span);
+                    }
+                    break;
+                case (SyntaxKind.RegionDirectiveTrivia, SnippetKind.None or SnippetKind.Region):
+                    {
+                        SetStart(trivia, SnippetKind.Region, text["#region ".Length..]);
+                    }
+                    break;
+                case (SyntaxKind.EndRegionDirectiveTrivia, SnippetKind.Region):
+                    {
+                        SetEnd(trivia.Span);
+                    }
+                    break;
+
+            }
+
+            base.VisitTrivia(trivia);
+        }
+
+        private void SetEnd(TextSpan span)
+        {
+            _nestingLevel--;
+            if (_nestingLevel == 0)
+                End = span.Start;
+        }
+
+        private void SetStart(SyntaxTrivia trivia, SnippetKind snippetKind, ReadOnlySpan<char> name)
+        {
+            if (Kind == SnippetKind.None && name.StartsWith(snippetName, StringComparison.OrdinalIgnoreCase))
+            {
+                Start = trivia.Span.End;
+                IndentationLevel = trivia.GetLocation().GetLineSpan().StartLinePosition.Character;
+                Kind = snippetKind;
+            }
+
+            if (Kind != SnippetKind.None)
+            {
+                _nestingLevel++;
+            }
+        }
+    }
+
+    private enum SnippetKind
+    {
+        None,
+        Region,
+        Comment,
+        Symbol
     }
 }
