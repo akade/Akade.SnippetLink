@@ -205,7 +205,7 @@ internal sealed class CSharpImporter(IFileSystem fileSystem) : SnippetImporter
             };
         }
 
-        private static bool FullSymbolNameMatch(SyntaxNode node, ReadOnlySpan<char> source, ReadOnlySpan<char> snippetName)
+        private static bool FullSymbolNameMatch(SyntaxNode node, ReadOnlySpan<char> sourceText, ReadOnlySpan<char> snippetName)
         {
             int lastSegmentStart;
             ReadOnlySpan<char> remaining = snippetName;
@@ -220,7 +220,7 @@ internal sealed class CSharpImporter(IFileSystem fileSystem) : SnippetImporter
                 if (identifier.IsKind(SyntaxKind.None))
                     return false;
 
-                ReadOnlySpan<char> nodeNameSpan = source[identifier.SpanStart..identifier.Span.End];
+                ReadOnlySpan<char> nodeNameSpan = sourceText[identifier.SpanStart..identifier.Span.End];
                 if (!currentSegment.Equals(nodeNameSpan, StringComparison.OrdinalIgnoreCase))
                     return false;
 

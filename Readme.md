@@ -3,8 +3,7 @@
 A streamlined, extensible and opinionated dotnet tool for importing snippets into Markdown files.
 
 Shamelessly inspired by [Simon Crop's excellent MarkdownSnippets](https://github.com/SimonCropp/MarkdownSnippets) but
-designed for easier extensibility and per snippet parametrization. The main motivations for this incarnation are **support for directly referencing C# symbols** like methods and **importing BenchmarkDotNet results**
-are the main reason for the library. In contrast to MarkdownSnippets, SnippetLink ironically does not render any user-clickable links.
+designed for easier extensibility and per snippet parametrization. The main motivations for this incarnation are **support for directly referencing C# symbols** like methods and **importing BenchmarkDotNet results**. In contrast to MarkdownSnippets, SnippetLink ironically does not render any user-clickable links.
 
 ## Features
 - Import code snippets from C# source files into Markdown files
