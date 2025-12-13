@@ -2,7 +2,7 @@
 
 ![.Net Version](https://img.shields.io/badge/dynamic/xml?color=%23512bd4&label=version&query=%2F%2FTargetFrameworks%5B1%5D&url=https://raw.githubusercontent.com/akade/Akade.SnippetLink/refs/heads/main/Akade.SnippetLink/Akade.SnippetLink.csproj&logo=.net)
 [![CI Build](https://github.com/akade/Akade.SnippetLink/actions/workflows/ci-build.yml/badge.svg?branch=main)](https://github.com/akade/Akade.SnippetLink/actions/workflows/ci-build.yml)
-[![NuGet version (Akade.SnippetLink)](https://img.shields.io/nuget/v/Akade.IndexedSet.svg?label=dotnet%20tool)](https://www.nuget.org/packages/Akade.SnippetLink/)
+[![NuGet version (Akade.SnippetLink)](https://img.shields.io/nuget/v/Akade.SnippetLink.svg?label=dotnet%20tool)](https://www.nuget.org/packages/Akade.SnippetLink/)
 [![MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/akade/Akade.SnippetLink#readme)
 
 A streamlined, extensible and opinionated dotnet tool for importing snippets into Markdown files.
