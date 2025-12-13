@@ -3,11 +3,7 @@
 A streamlined, extensible and opinionated dotnet tool for importing snippets into Markdown files.
 
 Shamelessly inspired by [Simon Crop's excellent MarkdownSnippets](https://github.com/SimonCropp/MarkdownSnippets) but
-designed for easier extensibility and per snippet customization. The included **support for importing BenchmarkDotNet results**
-is the main reason for the library.
-
-> :information_source: You can use both tools in the same project. Akade.SnippetLink to import BenchmarkDotNet results, 
-and MarkdownSnippets to render links to the original source files.
+designed for easier extensibility and per snippet parametrization. The main motivations for this incarnation are **support for directly referencing C# symbols** like methods and **importing BenchmarkDotNet results**. In contrast to MarkdownSnippets, SnippetLink ironically does not render any user-clickable links.
 
 ## Features
 - Import code snippets from C# source files into Markdown files
@@ -16,25 +12,25 @@ and MarkdownSnippets to render links to the original source files.
 
 ## Getting started
 
-Add the snippet in your csharp-file:
+> :information_source: Prerequisite: .NET 10 SDK
+
+If you have the following method in YourFile.cs:
 ```cs
-#region MySnippet
 public void MyMethod()
 {
     // Implementation
 }
-#endregion
 ```
-Add it in your markdown-file:
+You can reference it in your markdown-file:
 ```markdown
-<!-- begin-snippet: path/to/YourFile.cs MySnippet -->
+<!-- begin-snippet: path/to/YourFile.cs MyMethod -->
 <!-- end-snippet -->
 ```
 
-Run `dnx Akade.SnippetLink` and all markdown files in the current and subdirectories will be processed:
+Run `dnx Akade.SnippetLink` and all markdown files in the current and subdirectories will now include any linked snippet:
 
 ````markdown
-<!-- begin-snippet: path/to/YourFile.cs MySnippet -->
+<!-- begin-snippet: path/to/YourFile.cs MyMethod -->
 ```cs
 public void MyMethod()
 {
@@ -44,16 +40,17 @@ public void MyMethod()
 <!-- end-snippet -->
 ````
 
-Note that the links will still be there, so you can re-run the tool to update snippets as needed.
+As you can see, the links will still be there: You can repeatedly run the tool to update snippets as needed.
 
 Alternatively, install it as a local or global tool:
 - `dotnet tool install Akade.SnippetLink`
 - Run it using `dotnet snippet-link`
 
+## C-Sharp snippets
 
-## C-Sharp snippets based on comment or `#region` directives
-The following matches either `// begin-snippet: MarkdownProcessorTest` or `#region MarkdownProcessorTest` in the specified source file.
-Closed by either `// end-snippet` or `#endregion`. Indentation matches the start.
+You can directly reference most symbols (see below) by name. If you want to reference a different part of your file,
+use either `// begin-snippet: MarkdownProcessorTest` or `#region MarkdownProcessorTest` in the specified source file.
+Closed by either `// end-snippet` or `#endregion`. Indentation matches the start of the content.
 `<!-- begin-snippet: Akade.SnippetLink.Tests/MarkdownProcessorTests.cs MarkdownProcessorTest -->`
 <!-- begin-snippet: Akade.SnippetLink.Tests/MarkdownProcessorTests.cs MarkdownProcessorTest -->
 ```cs
@@ -91,16 +88,37 @@ Available options:
 ## Importers
 
 ### CSharpImporter
+Imports C# code snippets from `.cs` files, based on a **symbol**, **region name**, or a reference to a *snippet-comment*.
 
-Imports C# code regions as snippets from `.cs` files, based on `#region` and `#endregion` directives. The `source-file` is the 
-path to the `.cs` file, and `snippet-name` is the name of the region.
+> :information_source: For **Symbols**, the name does not need to be fully qualified if it is unique within the file. It matches from the innermost to outermost scope:
+i.e. If only one method `A` exists within the file, `A` is sufficient. If multiple methods `A` exist within different classes, the class name must be included as well: `ClassName.A`.
 
-| Name | Source-file (input) | Snippet-name (input) | Language | Parameters | Default Formatter    |
-|------|---------------------|----------------------|----------|------------|--------------------- |
-| cs   | .cs file path       | Region name          | cs       | None       | code-block           |
+> :heavy_exclamation_mark: Currently, generic type parameters and method overloads are not supported for symbol resolution. This will likely be added in a future release.
+Use regions or snippet-comments in the meantime.
+
+- Supported Symbols
+  - Constructors
+  - Methods
+  - Properties
+  - Types
+    - Enums
+    - Classes
+    - Extension blocks
+    - Extensions
+    - Interfaces
+    - Records
+    - Structs
+  - Delegates
+- Regions, referenced by name
+- Snippet-Comments: `// begin-snippet: snippet-name` and `// end-snippet`
+
+| Name | Source-file (input) | Snippet-name (input)                           | Language | Parameters                 | Default Formatter    |
+|------|---------------------|------------------------------------------------|----------|----------------------------|--------------------- |
+| cs   | .cs file path       | Symbol, region name or link to snippet-comment | cs       | body-only (bool, optional) | code-block           |
 
 - **Parameters:**  
-  - None
+  - body-only (optional, bool): If true, only the body of the symbol is included (if applicable), excluding the signature or declaration. Defaults to false and
+    ignored for regions and snippet-comments.
 
 **Examples:**
 ```markdown

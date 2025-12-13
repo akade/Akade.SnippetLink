@@ -154,6 +154,132 @@ public class MarkdownProcessorTests
     }
 
     [Fact]
+    public async Task Cs_method_snippet_implicit_namespace_first_time()
+    {
+        await Run(
+            """
+        Here is a code snippet:
+        <!-- begin-snippet: Example.cs MyClass.HelloWorldSample -->
+        ```cs
+        ```
+        <!-- end-snippet -->
+        """,
+            [
+                (
+                "Example.cs",
+                """
+                // Some C# code
+                public class MyClass
+                {
+                    public void HelloWorldSample()
+                    {
+                        Console.WriteLine("Hello World");
+                    }
+                }
+                """
+            )
+            ],
+            """
+        Here is a code snippet:
+        <!-- begin-snippet: Example.cs MyClass.HelloWorldSample -->
+        ```cs
+        public void HelloWorldSample()
+        {
+            Console.WriteLine("Hello World");
+        }
+        ```
+        <!-- end-snippet -->
+        """
+        );
+    }
+
+    [Fact]
+    public async Task Cs_method_body_snippet_explicit_namespace_first_time()
+    {
+        await Run(
+            """
+    Here is a code snippet:
+    <!-- begin-snippet: Example.cs MyClass.HelloWorldSample(importer:cs?body-only=true) -->
+    ```cs
+    ```
+    <!-- end-snippet -->
+    """,
+            [
+                (
+            "Example.cs",
+            """
+            // Some C# code
+            namespace SampleNamespace;
+            
+            public class MyClass
+            {
+                public void HelloWorldSample()
+                {
+                    Console.WriteLine("Hello World");
+                }
+            }
+            """
+        )
+            ],
+            """
+    Here is a code snippet:
+    <!-- begin-snippet: Example.cs MyClass.HelloWorldSample(importer:cs?body-only=true) -->
+    ```cs
+    Console.WriteLine("Hello World");
+    ```
+    <!-- end-snippet -->
+    """
+        );
+    }
+
+    [Fact]
+    public async Task Cs_class()
+    {
+        await Run(
+            """
+Here is a code snippet:
+<!-- begin-snippet: Example.cs MyClass -->
+```cs
+```
+<!-- end-snippet -->
+""",
+            [
+                (
+        "Example.cs",
+        """
+        // Some C# code
+        namespace SampleNamespace;
+        
+        [SampleAttribute]
+        public class MyClass
+        {
+            public void HelloWorldSample()
+            {
+                Console.WriteLine("Hello World");
+            }
+        }
+        """
+    )
+            ],
+            """
+Here is a code snippet:
+<!-- begin-snippet: Example.cs MyClass -->
+```cs
+[SampleAttribute]
+public class MyClass
+{
+    public void HelloWorldSample()
+    {
+        Console.WriteLine("Hello World");
+    }
+}
+```
+<!-- end-snippet -->
+"""
+        );
+    }
+
+    [Fact]
     public async Task BenchmarkDotNet_result_snippet_without_env()
     {
         await Run(
@@ -269,11 +395,4 @@ public class MarkdownProcessorTests
 
         return (result, output);
     }
-
-    #region MarkdownProcessorTest
-    public string Test()
-    {
-        return string.Empty;
-    }
-    #endregion
 }
