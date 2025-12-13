@@ -52,7 +52,7 @@ internal sealed class CSharpImporter(IFileSystem fileSystem) : SnippetImporter
 
         return (finder.Kind, finder.Start, finder.End) switch
         {
-            (_, >= 0, <= 1) => new Result.Failure($"Snippet '{name}' is missing its closing comment or region in '{sourceFile}'."),
+            (_, >= 0, <= 0) => new Result.Failure($"Snippet '{name}' is missing its closing comment or region in '{sourceFile}'."),
             (_, >= 0, >= 0) => GetSuccessfulSnippet(),
 
             _ => new Result.Failure($"Snippet '{name}' not found in file '{sourceFile}'."),
