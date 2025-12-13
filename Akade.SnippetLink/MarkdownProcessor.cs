@@ -38,7 +38,7 @@ internal sealed class MarkdownProcessor(IEnumerable<SnippetImporter> importers, 
 
                 // skip any existing content
                 string? nextLine;
-                while ((nextLine = reader.ReadLine()) is string && !nextLine.Trim().Equals("<!-- end-snippet -->", StringComparison.OrdinalIgnoreCase))
+                while ((nextLine = reader.ReadLine()) is not null && !nextLine.Trim().Equals("<!-- end-snippet -->", StringComparison.OrdinalIgnoreCase))
                 {
                     lineIndex++;
                 }

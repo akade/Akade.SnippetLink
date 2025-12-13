@@ -183,7 +183,10 @@ public class MarkdownProcessorTests
         Here is a code snippet:
         <!-- begin-snippet: Example.cs MyClass.HelloWorldSample -->
         ```cs
-        Console.WriteLine("Hello World");
+        public void HelloWorldSample()
+        {
+            Console.WriteLine("Hello World");
+        }
         ```
         <!-- end-snippet -->
         """
@@ -191,12 +194,12 @@ public class MarkdownProcessorTests
     }
 
     [Fact]
-    public async Task Cs_method_snippet_explicit_namespace_first_time()
+    public async Task Cs_method_body_snippet_explicit_namespace_first_time()
     {
         await Run(
             """
     Here is a code snippet:
-    <!-- begin-snippet: Example.cs MyClass.HelloWorldSample -->
+    <!-- begin-snippet: Example.cs MyClass.HelloWorldSample(importer:cs?body-only=true) -->
     ```cs
     ```
     <!-- end-snippet -->
@@ -220,12 +223,59 @@ public class MarkdownProcessorTests
             ],
             """
     Here is a code snippet:
-    <!-- begin-snippet: Example.cs MyClass.HelloWorldSample -->
+    <!-- begin-snippet: Example.cs MyClass.HelloWorldSample(importer:cs?body-only=true) -->
     ```cs
     Console.WriteLine("Hello World");
     ```
     <!-- end-snippet -->
     """
+        );
+    }
+
+    [Fact]
+    public async Task Cs_class()
+    {
+        await Run(
+            """
+Here is a code snippet:
+<!-- begin-snippet: Example.cs MyClass -->
+```cs
+```
+<!-- end-snippet -->
+""",
+            [
+                (
+        "Example.cs",
+        """
+        // Some C# code
+        namespace SampleNamespace;
+        
+        [SampleAttribute]
+        public class MyClass
+        {
+            public void HelloWorldSample()
+            {
+                Console.WriteLine("Hello World");
+            }
+        }
+        """
+    )
+            ],
+            """
+Here is a code snippet:
+<!-- begin-snippet: Example.cs MyClass -->
+```cs
+[SampleAttribute]
+public class MyClass
+{
+    public void HelloWorldSample()
+    {
+        Console.WriteLine("Hello World");
+    }
+}
+```
+<!-- end-snippet -->
+"""
         );
     }
 

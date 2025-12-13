@@ -4,7 +4,7 @@ namespace Akade.SnippetLink.Tests;
 
 internal class FakeFileSystem : IFileSystem
 {
-    private readonly Dictionary<string, string> _files = new();
+    private readonly Dictionary<string, string> _files = [];
 
     public bool DirectoryExists(string path)
     {

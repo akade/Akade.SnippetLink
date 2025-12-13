@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Version>0.1</Version>
+    <Version>0.2</Version>
     <Description>Dotnet tool to import snippets into your markdown files.</Description>
     <PackageTags>snippets;markdown;code-snippet;documentation;benchmarkdotnet</PackageTags>
     

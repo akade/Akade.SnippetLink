@@ -4,6 +4,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace Akade.SnippetLink.Importer;
@@ -29,6 +30,7 @@ internal sealed class CSharpImporter(IFileSystem fileSystem) : SnippetImporter
 
     internal override async Task<Result<Snippet>> ImportSnippetAsync(string sourceFile, string name, Options options)
     {
+        bool bodyOnly = options.Get("body-only", false);
         string sourceText;
         SyntaxTree tree;
 
@@ -45,7 +47,7 @@ internal sealed class CSharpImporter(IFileSystem fileSystem) : SnippetImporter
 
         var root = tree.GetRoot();
 
-        SnippetFinder finder = new(sourceText, name);
+        SnippetFinder finder = new(sourceText, name, bodyOnly);
         finder.Visit(root);
 
         return (finder.Kind, finder.Start, finder.End) switch
@@ -88,7 +90,7 @@ internal sealed class CSharpImporter(IFileSystem fileSystem) : SnippetImporter
         ;
     }
 
-    private class SnippetFinder(string sourceText, string snippetName) : CSharpSyntaxWalker(SyntaxWalkerDepth.StructuredTrivia)
+    private class SnippetFinder(string sourceText, string snippetName, bool bodyOnly) : CSharpSyntaxWalker(SyntaxWalkerDepth.StructuredTrivia)
     {
         public int IndentationLevel { get; private set; } = -1;
         public int Start { get; private set; } = -1;
@@ -145,30 +147,56 @@ internal sealed class CSharpImporter(IFileSystem fileSystem) : SnippetImporter
                 if (snippetName.EndsWith(nameSpan, StringComparison.OrdinalIgnoreCase)
                    && FullSymbolNameMatch(node, sourceText, snippetName))
                 {
-                    SyntaxNode startNode = node;
-                    SyntaxNode endNode = node;
-
-                    if (node is MethodDeclarationSyntax { Body: BlockSyntax block})
+                    if (bodyOnly && TryGetBody(node, out SyntaxNode? startNode, out int start, out int end))
                     {
-                        startNode = block.ChildNodes().First();
-                        endNode = block.ChildNodes().Last();
+                        Start = start;
+                        End = end;
+                    }
+                    else
+                    {
+                        TextSpan nodeSpan = node.FullSpan;
+                        Start = nodeSpan.Start;
+                        End = nodeSpan.End;
+                        startNode = node;
                     }
 
-                    Start = startNode.FullSpan.Start;
                     IndentationLevel = startNode.SyntaxTree.GetLocation(startNode.Span).GetLineSpan().StartLinePosition.Character;
                     Kind = SnippetKind.Symbol;
-                    End = endNode.FullSpan.End;
                 }
             }
 
             base.Visit(node);
         }
 
+        private static bool TryGetBody(SyntaxNode node, [NotNullWhen(true)] out SyntaxNode? startNode, out int start, out int end)
+        {
+            IEnumerable<SyntaxNode> childNodes = node switch
+            {
+                BaseMethodDeclarationSyntax methodLike => methodLike.Body?.ChildNodes() ?? methodLike.ExpressionBody?.ChildNodes() ?? [],
+                PropertyDeclarationSyntax propertyDecl => propertyDecl.AccessorList?.ChildNodes() ?? propertyDecl.ExpressionBody?.ChildNodes() ?? [],
+                BaseTypeDeclarationSyntax baseTypeDecl => baseTypeDecl.ChildNodes(),
+                _ => []
+            };
+
+            if (childNodes.Any())
+            {
+                startNode = childNodes.First();
+                start = startNode.FullSpan.Start;
+                end = childNodes.Last().FullSpan.End;
+                return true;
+            }
+
+            startNode = null;
+            start = 0;
+            end = 0;
+            return false;
+        }
+
         private static SyntaxToken GetIdentifier(SyntaxNode? node)
         {
             return node switch
             {
-                ClassDeclarationSyntax classDecl => classDecl.Identifier,
+                ConstructorDeclarationSyntax ctorDecl => ctorDecl.Identifier,
                 MethodDeclarationSyntax methodDecl => methodDecl.Identifier,
                 PropertyDeclarationSyntax propDecl => propDecl.Identifier,
                 BaseTypeDeclarationSyntax typeDecl => typeDecl.Identifier,
@@ -186,7 +214,7 @@ internal sealed class CSharpImporter(IFileSystem fileSystem) : SnippetImporter
             {
                 lastSegmentStart = remaining.LastIndexOf('.');
                 ReadOnlySpan<char> currentSegment = remaining[(lastSegmentStart + 1)..];
-                remaining = lastSegmentStart > 0 ? remaining[..lastSegmentStart] : ReadOnlySpan<char>.Empty;
+                remaining = lastSegmentStart > 0 ? remaining[..lastSegmentStart] : [];
 
                 SyntaxToken identifier = GetIdentifier(currentNode);
                 if (identifier.IsKind(SyntaxKind.None))
