@@ -37,7 +37,7 @@ foreach (string file in markdownFiles)
         }
         else
         {
-            await File.WriteAllTextAsync(file, content);
+            await File.WriteAllTextAsync(file, writer.GetStringBuilder().ToString());
             AnsiConsole.MarkupLine("[green] Updated[/]");
         }
     }

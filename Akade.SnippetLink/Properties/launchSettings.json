@@ -1,8 +1,7 @@
 {
   "profiles": {
     "Akade.SnippetLink": {
-      "commandName": "Project",
-      "workingDirectory": "C:\\Users\\alexa\\source\\repos\\Akade.SnippetLink"
+      "commandName": "Project"
     }
   }
 }
