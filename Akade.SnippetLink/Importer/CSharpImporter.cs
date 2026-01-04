@@ -41,7 +41,8 @@ internal sealed class CSharpImporter(IFileSystem fileSystem) : SnippetImporter
         else
         {
             sourceText = await fileSystem.ReadAllTextAsync(sourceFile);
-            tree = CSharpSyntaxTree.ParseText(sourceText);
+            var parseOptions = CSharpParseOptions.Default.pre
+            tree = CSharpSyntaxTree.ParseText(sourceText, parseOptions);
             _parseCacheBySourceFile[sourceFile] = (sourceText, tree);
         }
 

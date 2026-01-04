@@ -233,6 +233,48 @@ public class MarkdownProcessorTests
     }
 
     [Fact]
+    public async Task Cs_method_wrapped_in_preprocessor_conditional()
+    {
+        await Run(
+            """
+            Here is a code snippet:
+            <!-- begin-snippet: Example.cs MyClass.DebugMethod -->
+            ```cs
+            ```
+            <!-- end-snippet -->
+            """,
+            [
+                (
+                    "Example.cs",
+                    """
+                    // Some C# code
+                    public class MyClass
+                    {
+                    #if DEBUG
+                        public void DebugMethod()
+                        {
+                            Console.WriteLine("Debug mode");
+                        }
+                    #endif
+                    }
+                    """
+                )
+            ],
+            """
+            Here is a code snippet:
+            <!-- begin-snippet: Example.cs MyClass.DebugMethod -->
+            ```cs
+            public void DebugMethod()
+            {
+                Console.WriteLine("Debug mode");
+            }
+            ```
+            <!-- end-snippet -->
+            """
+        );
+    }
+
+    [Fact]
     public async Task Cs_class()
     {
         await Run(
