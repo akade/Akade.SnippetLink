@@ -395,4 +395,11 @@ public class MyClass
 
         return (result, output);
     }
+
+    #region MarkdownProcessorTest
+    public string Test()
+    {
+        return string.Empty;
+    }
+    #endregion
 }
